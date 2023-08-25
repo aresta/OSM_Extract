@@ -4,9 +4,9 @@ Extract OSM vectorial map features in a configurable way to fmp files (text file
 This is intended to be used in projects with microcontrollers involving GPS location and display capabilities, with limited memory and speed. But it can be used in any project that needs to render simple vectorial maps.
 
 Features:
-- The area to be extracted can be configured in /conf/clip_area.geojson and /scripts/pbf_to_geojson.sh
-- The features to be extracted can be configured in /conf/conf_extract.yaml
-- The styles to apply to each feature type (color, width) can be configured in conf_styles.yaml 
+- The area to be extracted can be configured in **/conf/clip_area.geojson** and **/scripts/pbf_to_geojson.sh**
+- The features to be extracted can be configured in **/conf/conf_extract.yaml**
+- The styles to apply to each feature type (color, width) can be configured in **conf_styles.yaml**
 
 It produces binary files with the vectorial data of the features: lines and polygons, with the style information.
 
