@@ -2,6 +2,9 @@
 # Assign color & width to each feature type.
 #
 # Place the most generic types after the specific ones, because the first style that match is applied.
+# Attributes: color, width (only line), maxzoom
+# maxzoom: above this zoom level the feature won't be displayed.
+#
 # For example:
 # - features:
 #   - highway.motorway
@@ -17,11 +20,13 @@ lines:
   - highway.footway
   color: red
   width: 1
+  maxzoom: 4
 
 - features:
   - highway.steps
   color: brown
   width: 2
+  maxzoom: 3
 
 - features:
   - highway.track
@@ -35,8 +40,10 @@ lines:
   - highway.pedestrian
   color: white
   width: 4
+  maxzoom: 5
 
 - features:
+  - highway.primary
   - highway.secondary
   - highway.secondary_link
   - highway.tertiary
@@ -45,6 +52,8 @@ lines:
 
 - features:
   - highway.motorway
+  - highway.motorway_link
+  - highway.trunk
   color: orange
   width: 12
 
@@ -54,12 +63,17 @@ lines:
   width: 3
 
 - features:
-  - waterway.stream
   - waterway.river
-  - waterway.drain
   - waterway
   color: cyan
   width: 1
+
+- features:
+  - waterway.stream
+  - waterway.drain
+  color: cyan
+  width: 1
+  maxzoom: 5
 
 - features:
   - railway
@@ -76,6 +90,10 @@ lines:
 polygons:
 - features:
   - building
+  color: grayclear
+  maxzoom: 3
+
+- features:
   - landuse.brownfield
   color: grayclear
 
@@ -91,9 +109,13 @@ polygons:
 
 - features:
   - natural.water
-  - leisure.swimming_pool
   - waterway
   color: blueclear
+
+- features:
+  - leisure.swimming_pool
+  color: blueclear
+  maxzoom: 5
 
 - features:
   - natural.beach
@@ -101,11 +123,15 @@ polygons:
 
 - features:
   - landuse.forest
+  - landuse.wood
+  - natural.forest
   - natural.wood
   color: green
 
 - features:
   - landuse.farmland
+  - landuse.farmyard
+  - landuse.orchard
   color: greenclear2
 
 - features:
@@ -115,6 +141,9 @@ polygons:
 - features:
   - amenity
   - leisure
+  - landuse.cemetery
+  - landuse.quarry
+  - landuse.landfill
   color: grayclear2
 
 # Map to colors, dependent of display type.
