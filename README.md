@@ -16,3 +16,25 @@ This is already used and working in the project: https://github.com/aresta/ESP32
 
 Still work in progress.
 
+Example of the creation of the map files:
+
+First clip the pbf to your area:
+
+```
+/maps/osmium extract --strategy=smart -p ../conf/clip_area.geojson /pbf/spain-latest.osm.pbf -o /pbf/clipped.pbf
+```
+
+Then generate the intermediate lines and polygons files and the map files:
+```
+min_lon=123
+min_lat=123
+max_lon=123
+max_lat=123
+
+./pbf_to_geojson.sh $min_lon $min_lat $max_lon $max_lat /pbf/clipped.pbf /maps/test
+echo "PBF extract done"
+
+./extract_features.py $min_lon $min_lat $max_lon $max_lat /maps/test
+echo "Map files created"
+```
+
