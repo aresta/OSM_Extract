@@ -1,4 +1,5 @@
 from shapely import geometry, LineString, LinearRing, Polygon, MultiPolygon, MultiLineString, Point, intersection
+from shapely.geometry import shape
 from shapely.ops import triangulate
 import PIL.ImageDraw as ImageDraw
 import PIL.Image as Image
@@ -7,13 +8,12 @@ import math
 IMG_WIDTH, IMG_HEIGHT = pow( 2, 12), pow( 2, 12) # 4096 x 4096
 BACKGROUND_COLOR = 0xDDDDDD
 
-PI = 3.14159265358979323846264338327950288
+PI = math.pi
 def DEG2RAD(a): return ((a) / (180 / PI))
 def RAD2DEG(a): return ((a) * (180 / PI))
 EARTH_RADIUS = 6378137
 def lat2y( lat): return round( math.log( math.tan( DEG2RAD(lat) / 2 + PI/4 )) * EARTH_RADIUS)
 def lon2x( lon): return round( DEG2RAD(lon) * EARTH_RADIUS)
-
 
 def parse_tags(tags_str):
     """ Extract the tags as dict
@@ -25,7 +25,6 @@ def parse_tags(tags_str):
         parts = tag.split('=>')
         res[parts[0]] = parts[1]
     return res
-
 
 def get_geoms( osm_geom ):
     """ Converts the geometry or multigeometry to a list of simple geometries (LineString, Polygon)
@@ -48,69 +47,165 @@ def get_geoms( osm_geom ):
     # else: print("ERROR: unknow geometry type:", geom_type)
     return geoms
 
-def process_features( features, conf ):
-    """ Extract the features based in the definitions in conf: which features to extract and which tags
-    """
-    extracted = []
-    total = len(features)
+def process_features_new(features, conf):
     done = 0
+    feat_found = set()
+
     for feature in features:
         properties = feature['properties']
-        if 'other_tags' in feature['properties']:
-            tags = parse_tags( feature['properties']['other_tags'] )  
-        else: tags = dict()
+        if 'other_tags' in properties:
+            tags = parse_tags(properties['other_tags'])
+        else:
+            tags = dict()
         
-        # some features are defined just by a tag in "other_Tags", like railway
-        # we add them to the properties
-        if 'tags' in conf: 
+        if 'tags' in conf:
             for tag in conf['tags']:
-                if tag in tags: 
+                if tag in tags:
                     properties[tag] = tags[tag]
 
         feature_type = None
         feature_type_tags = []
-        z_order = properties['z_order'] if 'z_order' in properties else None
+        z_order = properties.get('z_order', None)
+        
         for conf_feat_type in conf['feature_types']:
             if conf_feat_type in properties:
-                feat_subtype = properties[ conf_feat_type ]
-                filter_by_subtype = (len( conf['feature_types'][conf_feat_type]) > 0) 
-                if filter_by_subtype and not feat_subtype in conf['feature_types'][conf_feat_type]: continue
+                feat_subtype = properties[conf_feat_type]
+                filter_by_subtype = len(conf['feature_types'][conf_feat_type]) > 0
+                if filter_by_subtype and feat_subtype not in conf['feature_types'][conf_feat_type]:
+                    continue
                 feature_type = conf_feat_type + '.' + feat_subtype
-                if isinstance( conf['feature_types'][conf_feat_type], list): break # no tags to check, we are done
+                if isinstance(conf['feature_types'][conf_feat_type], list):
+                    break  # No tags to check, we are done
                 conf_feature_tags = conf['feature_types'][conf_feat_type][feat_subtype]
                 for feat_subtype_tag in conf_feature_tags:
                     if feat_subtype_tag in tags:
-                        feature_type_tags.append( feat_subtype_tag + '.' + tags[feat_subtype_tag])
+                        feature_type_tags.append(feat_subtype_tag + '.' + tags[feat_subtype_tag])
                 break
 
-        if not feature_type: 
+        if not feature_type:
             done += 1
             continue
-        # geom can be one or several lines or polygons
-        geoms = get_geoms( feature['geometry']) 
-        id = properties['osm_way_id'] if 'osm_way_id' in properties else \
-            properties['osm_id'] if 'osm_id' in properties else ''
-        for geom in geoms:
-            if not geom.is_valid or geom.is_empty: continue
-            extracted.append({
-                'id': id, # for testing/debugging
-                'type': feature_type,
-                'geom_type': 'line' if feature['geometry']['type'] in ('LineString','MultiLineString') else 'polygon',
-                'tags':  feature_type_tags,
-                'z_order': z_order,
-                'geom': geom
-                })
+
+        geom = shape(feature['geometry'])  # Convert geometry from GeoJSON to Shapely object
+        if not geom.is_valid or geom.is_empty:
+            done += 1
+            continue
+
+        geom_type = 'line' if geom.geom_type in ('LineString', 'MultiLineString') else 'polygon'
+        feat_found.add(feature_type)  # Collect unique feature types
+
+        # Yielding each feature as soon as it's processed
+        yield {
+            'id': properties.get('osm_way_id', properties.get('osm_id', '')),
+            'type': feature_type,
+            'geom_type': geom_type,
+            'tags': feature_type_tags,
+            'z_order': z_order,
+            'geom': geom
+        }
         done += 1
-        print("  Step 3/5 Extract. {:.0%}  ".format(done/total), end='\r')
-    
-    # print report
+#        print("... Extraction completed with {} features".format(done), end='\r')
+
+#    print("\n... Feature types extracted: [{}]".format(", ".join(sorted(feat_found))))
+
+
+def process_features(features, conf):
+    extracted = []
+    done = 0
     feat_found = set()
-    for ext in extracted:
-        feat_found.add( ext["type"])
-    print("Feature types extracted:")
-    for ft in sorted(feat_found):
-        print(ft)
+
+    for feature in features:
+        properties = feature['properties']
+        if 'other_tags' in properties:
+            tags = parse_tags(properties['other_tags'])
+        else:
+            tags = dict()
+        
+        if 'tags' in conf:
+            for tag in conf['tags']:
+                if tag in tags:
+                    properties[tag] = tags[tag]
+
+        feature_type = None
+        feature_type_tags = []
+        z_order = properties.get('z_order', None)
+        
+        for conf_feat_type in conf['feature_types']:
+            if conf_feat_type in properties:
+                feat_subtype = properties[conf_feat_type]
+                filter_by_subtype = len(conf['feature_types'][conf_feat_type]) > 0
+                if filter_by_subtype and feat_subtype not in conf['feature_types'][conf_feat_type]:
+                    continue
+                feature_type = conf_feat_type + '.' + feat_subtype
+                if isinstance(conf['feature_types'][conf_feat_type], list):
+                    break  # No tags to check, we are done
+                conf_feature_tags = conf['feature_types'][conf_feat_type][feat_subtype]
+                for feat_subtype_tag in conf_feature_tags:
+                    if feat_subtype_tag in tags:
+                        feature_type_tags.append(feat_subtype_tag + '.' + tags[feat_subtype_tag])
+                break
+
+        if not feature_type:
+            done += 1
+            continue
+
+        geom = shape(feature['geometry'])  # Convert geometry from GeoJSON to Shapely object
+        if not geom.is_valid or geom.is_empty:
+            done += 1
+            continue
+
+        geom_type = 'line' if geom.geom_type in ('LineString', 'MultiLineString') else 'polygon'
+
+        extracted.append({
+            'id': properties.get('osm_way_id', properties.get('osm_id', '')),
+            'type': feature_type,
+            'geom_type': geom_type,
+            'tags': feature_type_tags,
+            'z_order': z_order,
+            'geom': geom
+        })
+        feat_found.add(feature_type)  # Collect unique feature types
+        done += 1
+        print("... Extraction completed with {} features".format(done), end='\r')
+
+    print("\n... Feature types extracted: [{}]".format(", ".join(sorted(feat_found))))
+
     return extracted
+
+def style_features_new(features, styles):
+    """
+    Apply styles (color, width) to the features based on the definitions in styles.
+    This function now uses a generator to yield styled features one at a time.
+    """
+    for feat in features:
+        feature_type = feat['type']
+        feature_type_group = feature_type.split('.')[0]
+        feature_color = '0xF972'  # default pink
+        feature_width = None  # default
+        feature_maxzoom = ''  # default
+        found = False
+        conf_styles = styles['lines'] if feat['geom_type'] == 'line' else styles['polygons']
+        for style_item in conf_styles:
+            if feature_type in style_item['features'] or feature_type_group in style_item['features']:
+                if 'color' in style_item: feature_color = styles["colors"][style_item['color']]
+                if 'width' in style_item: feature_width = style_item['width']
+                if 'maxzoom' in style_item: feature_maxzoom = style_item['maxzoom']
+                found = True
+                break  # keep first match
+        if not found: 
+            print("Not mapped: ", feature_type, feature_type_group)
+        
+        styled_feature = {
+            'id': feat['id'],  # for debugging
+            'type': feature_type,  # retain for further processing if necessary
+            'geom_type': feat['geom_type'],
+            'color': feature_color, 
+            'width': feature_width,
+            'maxzoom': feature_maxzoom,
+            'z_order': feat.get('z_order', 0),  # Default z_order to 0 if not provided
+            'geom': feat['geom']
+        }
+        yield styled_feature
 
 
 def style_features( features, styles):
@@ -146,49 +241,49 @@ def style_features( features, styles):
             })
     return styled_features
 
-
-def clip_lines( features, bbox: Polygon): #TODO remove feats that are fully contained, return remaining
-    """ Clip lines to the box area. Each line can be splitted into one or several lines.
-        Returns a list of LineStrings
+# Modifying the clipping functions to use generators
+# These changes make the clipping operations yield features one at a time instead of building a list in memory.
+def clip_lines(features, bbox):
+    """ Clip lines to the box area. Each line can be split into one or several lines.
     """
-    clipped = []
     for feat in features:
         line = feat['geom']
-        assert type( line) == LineString, type(line)
-        if not bbox.intersects( line) or bbox.touches( line): continue
-        parts = intersection( line, bbox)
-        assert type( parts) in (LineString, MultiLineString), type( parts)
-        if not parts.is_valid: continue
-        for p in parts.geoms if type(parts) == MultiLineString else [parts,]:
-            assert type( p) == LineString, type( p)
-            if p.is_valid:
-                new_feat = dict( feat)
-                new_feat['geom'] = p
-                new_feat['bbox'] = p.bounds
-                clipped.append( new_feat)            
-    return clipped 
+        if bbox.intersects(line):
+            parts = line.intersection(bbox)
+            if isinstance(parts, LineString):
+                parts = [parts]
+            elif isinstance(parts, MultiLineString):
+                parts = list(parts.geoms)
+            else:
+                continue
 
-def clip_polygons( features, bbox: Polygon):
-    """ Clip polygons to the bbox area. Each polygon can be splitted into one or several polygons.
-        Returns a list of polygons
+            for part in parts:
+                if part.is_valid and not part.is_empty:
+                    new_feat = dict(feat)
+                    new_feat['geom'] = part
+                    new_feat['bbox'] = part.bounds
+                    yield new_feat
+
+def clip_polygons(features, bbox):
+    """ Clip polygons to the bbox area. Each polygon can be split into one or several polygons.
     """
-    clipped = []
     for feat in features:
         polygon = feat['geom']
-        assert type( polygon) == Polygon, type( polygon)
-        if not bbox.intersects( polygon) or bbox.touches( polygon): continue
-        parts = intersection( polygon, bbox)
-        assert type( parts) in (Polygon, MultiPolygon), type( parts)
-        if not parts.is_valid: continue
-        for p in parts.geoms if type(parts) == MultiPolygon else [parts,]:
-            if p.is_valid and not p.is_empty:
-                new_feat = dict( feat)
-                new_feat['geom'] = p
-                new_feat['bbox'] = p.bounds
-                clipped.append( new_feat)
-        # if len( new_feat['geom'].coords) <= 2: continue
-    return clipped
+        if bbox.intersects(polygon):
+            parts = polygon.intersection(bbox)
+            if isinstance(parts, Polygon):
+                parts = [parts]
+            elif isinstance(parts, MultiPolygon):
+                parts = list(parts.geoms)
+            else:
+                continue
 
+            for part in parts:
+                if part.is_valid and not part.is_empty:
+                    new_feat = dict(feat)
+                    new_feat['geom'] = part
+                    new_feat['bbox'] = part.bounds
+                    yield new_feat
 
 def color_to_24bits( color565):
     """ Convert color codification. 
@@ -213,7 +308,6 @@ def draw_feature( draw: ImageDraw, feat, min_x, min_y ):
     else:
         width = max( round( feat['width']), 1) if feat['width'] else 1
         draw.line( points, fill = color, width = width)
-
 
 def render_map( features, file_name, min_x, min_y):
     """Export an image of the features
