@@ -41,7 +41,7 @@ For example: *spain-latest.osm.pbf*
 It will generate an smaller PBF file of a reduced area, defined by the clipping square in *clip_area.geojson*
 
 
-3. Then generate the intermediate lines and polygons files and the map files:
+3. Generate the intermediate lines and polygons files extracting only the defined subset of feature types:
 ```
 min_lon=123
 min_lat=123
@@ -50,11 +50,13 @@ max_lat=123
 
 ./pbf_to_geojson.sh $min_lon $min_lat $max_lon $max_lat /pbf/clipped.pbf /maps/test
 echo "PBF extract done"
+```
 
+4. And finally generate the compiled map files in the folder */maps/test/* 
+```
 ./extract_features.py $min_lon $min_lat $max_lon $max_lat /maps/test
 echo "Map files created"
 ```
-It will extract and generate the compiled map files in the folder */maps/test/* 
 
 These files will contain the feature types defined in */conf/conf_extract.yaml* of your area, with the visual styles defined in */conf/conf_styles.yaml*
 
