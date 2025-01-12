@@ -1,5 +1,5 @@
 # OSM_Extract
-This tools are created to extract OpenStreetMap vectorial map features in a configurable way to fmp files (text files with specific format) to be used by other projects to display custom maps with a subset of map features and a custom styling.
+This tools are created to extract OpenStreetMap vectorial map features to *fmp* files (text with specific format) to be used by other projects to display custom maps with a subset of features and a custom styling.
 
 For example, you can store the generated files in an SD card and use it to render maps in your custom device.
 
@@ -16,7 +16,7 @@ Features:
 
 It produces custom text files with the vectorial data of the features: lines and polygons, with the style information.
 
-The map files are organized in a folders structure. Each folder contains several map files and has a custom name that defines the offset position of the map files in the folder.
+The map files are organized in a folder tree structure. Each folder contains several map files and has a custom name that defines the offset position of the map files in the folder.
 
 Each file contains the vectorial data of an area of approximately 4x4 Kms. 
 
