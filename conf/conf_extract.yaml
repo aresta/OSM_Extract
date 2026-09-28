@@ -37,6 +37,6 @@ polygons:
     amenity: []
     leisure: []
     natural: [beach, wood, scrub, grassland, water, heath]
-    landuse: [grass, meadow, allotments, brownfield, forest, wood, farmland, farmyard, cemetery, quarry, orchard, landfill]
+    landuse: [grass, meadow, allotments, brownfield, forest, wood, farmland, farmyard, cemetery, quarry, orchard, landfill, village_green]
   tags:
     - natural

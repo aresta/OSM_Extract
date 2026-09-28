@@ -105,6 +105,7 @@ polygons:
   - leisure.garden
   - leisure.pitch
   - leisure.golf_course
+  - landuse.village_green
   color: greenclear
 
 - features:
