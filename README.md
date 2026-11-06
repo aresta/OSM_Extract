@@ -5,6 +5,24 @@ For example, you can store the generated files in an SD card and use it to rende
 
 This is intended to be used in projects with microcontrollers involving GPS location and display capabilities. But it can be used in any project that needs to render simple vectorial maps.
 
+## Editing the clip area graphically
+
+Instead of hand-writing */conf/clip_area.geojson* (e.g. in geojson.io), you can draw it in a browser:
+
+1. Generate the base outline map from your PBF file, to use as a reference (coastlines and administrative boundaries — country = 2, regions = 4, provinces = 6 by default; e.g. `2,4,6,8` also adds counties):
+
+```
+./make_base_map.sh /pbf/sp.pbf [2,4,6]
+```
+
+2. Start the editor server inside the docker container:
+
+```
+python3 /scripts/clip_editor.py
+```
+
+3. Open **http://localhost:8080**: draw the polygon around the area you want to extract, adjust it with the edit tool and save. It writes */conf/clip_area.geojson* and shows the resulting bbox (`min_lon min_lat max_lon max_lat`) to copy into the scripts below. Needs no internet: the base map is drawn from the extracted features.
+
 Features:
 - The area to be extracted can be configured in **/conf/clip_area.geojson**. 
 
@@ -28,7 +46,7 @@ Still work in progress.
 
 ## Example of the creation of the map files
 
-1. Download the OpenStreetMap **PBF** file of your ares with all the map features.  You can find them in [Geofabrik](https://download.geofabrik.de/) or https://download.openstreetmap.fr/extracts/
+1. Download the OpenStreetMap **PBF** file of your area with all the map features.  You can find them in [Geofabrik](https://download.geofabrik.de/) or https://download.openstreetmap.fr/extracts/
 
 For example: *spain-latest.osm.pbf*
 

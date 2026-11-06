@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   tools:
     build:
@@ -10,6 +8,8 @@ services:
       - ./conf:/conf
       - ./pbf:/pbf
       - ./maps:/maps
+    ports:
+      - "8080:8080"
     tty: true
 
 

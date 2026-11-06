@@ -4,7 +4,7 @@
 # Most tiled web maps (such as the standard OSM maps and Google Maps) use this Mercator projection.
 # WGS84 (EPSG 4326) => Mercator (EPSG 3857)
 
-# First download the big pbf file of your area and store it in /fbf Check: https://download.geofabrik.de/
+# First download the big pbf file of your area and store it in /pbf Check: https://download.geofabrik.de/
 
 # Uncomment to clip the big pbf file to a reduced area. Adjust the clip_xxx.geojson clipping area -> check: http://geojson.io
 # /maps/osmium extract --strategy=smart -p ../conf/clip_area.geojson /pbf/spain-latest.osm.pbf -o /pbf/clipped.pbf

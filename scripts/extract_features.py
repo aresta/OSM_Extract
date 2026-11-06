@@ -25,6 +25,9 @@ mapfolder_mask = pow( 2, MAPFOLDER_SIZE_BITS) - 1    # ...00001111
 conf = yaml.safe_load( open( CONF_FEATURES, "r"))
 styles = yaml.safe_load( open(CONF_STYLES, "r"))
 
+render_test_img = False
+if sys.argv[6] == 'TEST_IMG': render_test_img = True
+
 min_lon, min_lat, max_lon, max_lat = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 area_min_x, area_min_y = lon2x( float( min_lon)), lat2y( float( min_lat))
 area_max_x, area_max_y = lon2x( float( max_lon)), lat2y( float( max_lat))
@@ -74,9 +77,10 @@ for init_x in range(area_min_x, area_max_x, 4096):
         os.makedirs( folder_name, exist_ok=True)
         # print(f"File: {file_name}.fmp")
 
-        # export a png image of the block, for testing # TODO: make optional
-        os.makedirs(f"{MAP_FOLDER}/test_imgs", exist_ok=True)
-        render_map( features = clipped_polygons + clipped_lines, 
+        # export a png image of the block, for testing #
+        if render_test_img:
+            os.makedirs(f"{MAP_FOLDER}/test_imgs", exist_ok=True)
+            render_map( features = clipped_polygons + clipped_lines, 
                 file_name=f"{MAP_FOLDER}/test_imgs/block_{folder_name_x}_{folder_name_y}-{block_x}_{block_y}.png", 
                 min_x=min_x, min_y=min_y)
 
