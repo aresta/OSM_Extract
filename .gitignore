@@ -1,5 +1,6 @@
-maps/mymap
+maps/
 pbf
 __pycache__
 **/test*
 .DS_Store
+conf/clip_area.geojson

@@ -14,10 +14,12 @@
 ```
 
 ## Scripts
+```
 scripts
     ├── extract_features.py     # generate the compiled map files
     ├── funcs.py                # support functions
-    ├── pbf_to_geojson.sh       # extract the features from the pbf file to geojson: lines, polygons
+    ├── map_extraction.sh       # full pipeline: clip pbf -> geojson -> map files
+```
 
 check: README.md
 

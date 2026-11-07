@@ -5,76 +5,68 @@ For example, you can store the generated files in an SD card and use it to rende
 
 This is intended to be used in projects with microcontrollers involving GPS location and display capabilities. But it can be used in any project that needs to render simple vectorial maps.
 
-## Editing the clip area graphically
+## Example of the creation of the map files
 
-Instead of hand-writing */conf/clip_area.geojson* (e.g. in geojson.io), you can draw it in a browser:
+### 1. Download the OpenStreetMap **PBF** file of your area
 
-1. Generate the base outline map from your PBF file, to use as a reference (coastlines and administrative boundaries — country = 2, regions = 4, provinces = 6 by default; e.g. `2,4,6,8` also adds counties):
+You can find them in [Geofabrik](https://download.geofabrik.de/) or https://download.openstreetmap.fr/extracts/
 
-```
-./make_base_map.sh /pbf/sp.pbf [2,4,6]
-```
-
-2. Start the editor server inside the docker container:
-
-```
-python3 /scripts/clip_editor.py
+For example: *spain-latest.osm.pbf*
+```bash
+wget -P pbf -N http://download.openstreetmap.fr/extracts/europe/spain-latest.osm.pbf
 ```
 
-3. Open **http://localhost:8080**: draw the polygon around the area you want to extract, adjust it with the edit tool and save. It writes */conf/clip_area.geojson* and shows the resulting bbox (`min_lon min_lat max_lon max_lat`) to copy into the scripts below. Needs no internet: the base map is drawn from the extracted features.
 
-Features:
-- The area to be extracted can be configured in **/conf/clip_area.geojson**. 
+### 2. Start docker
 
-- The script **/scripts/pbf_to_geojson.sh** is used to do the extraction.
+For the next steps you will need the docker container running:
+```bash
+docker compose up -d
+```
 
+### 3. Define your custom map area graphically
+
+- First generate an outline map out of your PBF file:
+
+```bash
+docker compose exec tools /scripts/make_base_map.sh /pbf/spain-latest.osm.pbf
+```
+It will generate a basic map with just coastlines, country, region and provinces boundaries, as a reference to draw your custom map boundaries.
+
+- Then start the local app in docker to draw the **clip area** of your map graphically:
+```bash
+docker compose exec tools python3 /scripts/clip_editor.py
+```
+- Open **http://localhost:8080** in your browser and draw the polygon around the area you want for your map, or adjust it with the edit tool, and save. 
+
+It writes */conf/clip_area.geojson*, used in the next steps to extract the map features of the defined area.
+
+
+### 5. Features extraction and map files generation
+
+```bash
+docker compose exec tools /scripts/map_extraction.sh
+```
 - The feature types to be extracted can be configured in **/conf/conf_extract.yaml**
-
 - The styles to apply to each feature type (color, width...) can be configured in **conf_styles.yaml**
 
-It produces custom text files with the vectorial data of the features: lines and polygons, with the style information.
 
+The files in */maps* will contain the feature types defined in */conf/conf_extract.yaml* of your area, with the visual styles defined in */conf/conf_styles.yaml*
+
+
+---
 The map files are organized in a folder tree structure. Each folder contains several map files and has a custom name that defines the offset position of the map files in the folder.
-
-Each file contains the vectorial data of an area of approximately 4x4 Kms. 
-
-Each folder contains up to 256 files (16x16 blocks), so it covers an approximate area of 64x64 Kms.  You can have as many folders as you need to cover your map area.
+- Each file contains the vectorial data of an area of approximately 4x4 Kms. 
+- Each folder contains up to 256 files (16x16 blocks), so it covers an approximate area of 64x64 Kms.  
+You can have as many folders as you need to cover your map area.
 
 This is already used and working in the project: https://github.com/aresta/ESP32_GPS
 
-Still work in progress.
-
-## Example of the creation of the map files
-
-1. Download the OpenStreetMap **PBF** file of your area with all the map features.  You can find them in [Geofabrik](https://download.geofabrik.de/) or https://download.openstreetmap.fr/extracts/
-
-For example: *spain-latest.osm.pbf*
 
 
-2. Clip the pbf to your area:
-
-```
-/maps/osmium extract --strategy=smart -p ../conf/clip_area.geojson /pbf/spain-latest.osm.pbf -o /pbf/clipped.pbf
-```
-It will generate an smaller PBF file of a reduced area, defined by the clipping square in *clip_area.geojson*
 
 
-3. Generate the intermediate lines and polygons files extracting only the defined subset of feature types:
-```
-min_lon=123
-min_lat=123
-max_lon=123
-max_lat=123
 
-./pbf_to_geojson.sh $min_lon $min_lat $max_lon $max_lat /pbf/clipped.pbf /maps/test
-echo "PBF extract done"
-```
 
-4. And finally generate the compiled map files in the folder */maps/test/* 
-```
-./extract_features.py $min_lon $min_lat $max_lon $max_lat /maps/test
-echo "Map files created"
-```
 
-These files will contain the feature types defined in */conf/conf_extract.yaml* of your area, with the visual styles defined in */conf/conf_styles.yaml*
 

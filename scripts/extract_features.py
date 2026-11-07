@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from funcs import process_features, clip_lines, clip_polygons, style_features, render_map, lat2y, lon2x
+from funcs import process_features, clip_lines, clip_polygons, style_features, build_tree, render_map, lat2y, lon2x
 from shapely import box
 import json, yaml
 import os, sys
@@ -26,28 +26,29 @@ conf = yaml.safe_load( open( CONF_FEATURES, "r"))
 styles = yaml.safe_load( open(CONF_STYLES, "r"))
 
 render_test_img = False
-if sys.argv[6] == 'TEST_IMG': render_test_img = True
+if len(sys.argv) == 7 and sys.argv[6] == 'TEST_IMG': render_test_img = True
 
 min_lon, min_lat, max_lon, max_lat = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 area_min_x, area_min_y = lon2x( float( min_lon)), lat2y( float( min_lat))
 area_max_x, area_max_y = lon2x( float( max_lon)), lat2y( float( max_lat))
 
-print("  Step 1/5 reading lines files")
-lines = json.load( open( LINES_INPUT_FILE, "r"))
-print("  Step 2/5 reading polygons files")
-polygons = json.load( open( POLYGONS_INPUT_FILE, "r"))
-
-# extract relevant features
+# extract relevant features: one file at a time, to keep the peak memory lower
 print("Extracting features")
+print("  Step 1/5 reading lines file")
+lines = json.load( open( LINES_INPUT_FILE, "r"))
 lines = process_features( lines['features'], conf['lines']) # extracted_lines
+print("  Step 2/5 reading polygons file")
+polygons = json.load( open( POLYGONS_INPUT_FILE, "r"))
 polygons = process_features( polygons['features'], conf['polygons']) # extracted_polygons
 print("Applying styles")
 # apply styles
 lines = style_features( lines, styles) # styled_lines
 polygons = style_features( polygons, styles) # styled_polygons
 # polygons = make_all_convex( polygons)
+# spatial index of each features list, so every map block only clips the features in its area
+lines_tree, polygons_tree = build_tree( lines), build_tree( polygons)
 
-total = ((area_max_x - area_min_x)/4096) * ((area_max_y - area_min_y)/4096)
+total = len( range(area_min_x, area_max_x, 4096)) * len( range(area_min_y, area_max_y, 4096))
 done = 0
 for init_x in range(area_min_x, area_max_x, 4096):
     for init_y in range(area_min_y, area_max_y, 4096):
@@ -58,10 +59,11 @@ for init_x in range(area_min_x, area_max_x, 4096):
         mapblock_bbox = box( min_x, min_y, min_x + mapblock_mask, min_y + mapblock_mask + 1) # we add 1 in max_y to compensate rounding errors when rendering
 
         # clip features to the block area
-        clipped_lines = clip_lines( lines, mapblock_bbox)
-        clipped_polygons = clip_polygons( polygons, mapblock_bbox)
+        clipped_lines = clip_lines( lines, mapblock_bbox, lines_tree)
+        clipped_polygons = clip_polygons( polygons, mapblock_bbox, polygons_tree)
+        done += 1
+        print("  Step 5/5 Building map. {:.0%}  ".format(done/total), end='\r')
         if len(clipped_lines) == 0 and len( clipped_polygons) == 0:
-            done += 1
             continue
 
         # export map files
@@ -115,8 +117,8 @@ for init_x in range(area_min_x, area_max_x, 4096):
                 file.write('\n')
                 features += 1
             # print("Polygons, points: ", features, points)
-        done += 1
-        print("  Step 5/5 Building map. {:.0%}  ".format(done/total), end='\r')
+
+print()
 
 
 

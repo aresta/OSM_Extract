@@ -1,4 +1,4 @@
-from shapely import geometry, LineString, LinearRing, Polygon, MultiPolygon, MultiLineString, Point, intersection
+from shapely import geometry, LineString, LinearRing, Polygon, MultiPolygon, MultiLineString, Point, intersection, STRtree
 from shapely.ops import triangulate
 import PIL.ImageDraw as ImageDraw
 import PIL.Image as Image
@@ -34,18 +34,21 @@ def get_geoms( osm_geom ):
     geom_type = osm_geom['type']
     if geom_type == 'LineString':
         geoms.append( LineString( osm_geom['coordinates']))
-    elif geom_type == 'Polygon':
-        geoms.append( Polygon( osm_geom['coordinates']))
     elif geom_type == 'MultiLineString':
         for g in osm_geom['coordinates']:
             geoms.append( LineString( g))
-    elif geom_type == 'MultiPolygon':
-        # print("g", osm_geoms)
-        geoms.append( Polygon( osm_geom['coordinates'][0][0])) # we take just the 1st, the rest are holes #TODO: manage holes
+    elif geom_type in ('Polygon', 'MultiPolygon'):
+        # MultiPolygon: coordinates = [ [shell, holes...], part2 ...]. Polygon: same, with just 1 part
+        parts = osm_geom['coordinates'] if geom_type == 'MultiPolygon' else [osm_geom['coordinates']]
+        for part in parts:
+            # a piece can come with its rings extra-nested when clipped
+            while isinstance( part[0][0][0], list): part = part[0]
+            geoms.append( Polygon( part[0])) # 1st ring = shell, the rest are holes (not used by the device) #TODO: manage holes
+    # GeometryCollection: output when clipping a polygon produces a mix of pieces and boundary lines
+    elif geom_type == 'GeometryCollection':
+        for g in osm_geom['geometries']:
+            if 'Polygon' in g['type']: geoms += get_geoms( g) # just the polygon members, the lines are clip artifacts
     else: print("ERROR. Unknow osm geom type:", geom_type)
-    # elif geom_type == 'GeometryCollection': # TODO
-    #     return []    
-    # else: print("ERROR: unknow geometry type:", geom_type)
     return geoms
 
 def process_features( features, conf ):
@@ -147,12 +150,20 @@ def style_features( features, styles):
     return styled_features
 
 
-def clip_lines( features, bbox: Polygon): #TODO remove feats that are fully contained, return remaining
+def build_tree( features):
+    """ Build a spatial index (STRtree) over a list of features, to speed up searching candidates per map block
+    """
+    return STRtree([ feat['geom'] for feat in features])
+
+
+def clip_lines( features, bbox: Polygon, tree = None): #TODO remove feats that are fully contained, return remaining
     """ Clip lines to the box area. Each line can be splitted into one or several lines.
+        When a tree (spatial index) is provided, only the candidates in its area are checked.
         Returns a list of LineStrings
     """
     clipped = []
-    for feat in features:
+    candidates = [ features[i] for i in tree.query( bbox)] if tree is not None else features
+    for feat in candidates:
         line = feat['geom']
         assert type( line) == LineString, type(line)
         if not bbox.intersects( line) or bbox.touches( line): continue
@@ -168,12 +179,14 @@ def clip_lines( features, bbox: Polygon): #TODO remove feats that are fully cont
                 clipped.append( new_feat)            
     return clipped 
 
-def clip_polygons( features, bbox: Polygon):
+def clip_polygons( features, bbox: Polygon, tree = None):
     """ Clip polygons to the bbox area. Each polygon can be splitted into one or several polygons.
+        When a tree (spatial index) is provided, only the candidates in its area are checked.
         Returns a list of polygons
     """
     clipped = []
-    for feat in features:
+    candidates = [ features[i] for i in tree.query( bbox)] if tree is not None else features
+    for feat in candidates:
         polygon = feat['geom']
         assert type( polygon) == Polygon, type( polygon)
         if not bbox.intersects( polygon) or bbox.touches( polygon): continue
