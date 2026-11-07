@@ -26,7 +26,7 @@ docker compose up -d
 
 ### 3. Define your custom map area graphically
 
-- First generate an outline map out of your PBF file:
+- First generate an outline map out of your PBF file (only once for a new pbf):
 
 ```bash
 docker compose exec tools /scripts/make_base_map.sh /pbf/spain-latest.osm.pbf
@@ -47,6 +47,7 @@ It writes */conf/clip_area.geojson*, used in the next steps to extract the map f
 ```bash
 docker compose exec tools /scripts/map_extraction.sh
 ```
+Note: Some steps can throw *TopologyException* errors, because of some invalid geometries in the OSM pbf's. We can just ignore them.
 - The feature types to be extracted can be configured in **/conf/conf_extract.yaml**
 - The styles to apply to each feature type (color, width...) can be configured in **conf_styles.yaml**
 
